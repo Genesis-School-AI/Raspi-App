@@ -1,0 +1,8 @@
+Recording Metadata
+==================
+Room ID: 201
+Year ID: 2023
+Subject: Mathematics
+Teacher Name: Dr. Smith
+Recording Date: 2025-07-02 22:32:16
+Audio File: recordings/R201_Y2023_Mathematics_Dr_Smith_20250702_223216.wav
