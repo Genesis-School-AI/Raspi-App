@@ -26,7 +26,7 @@ pipe.model.config.forced_decoder_ids = pipe.tokenizer.get_decoder_prompt_ids(
 )
 
 # Load audio file using librosa
-audio_file = "./recordings/R201_Y2023_Mathematics_Dr_Smith_20250702_223216.wav"
+audio_file = "./recordings/R1_Y1_math_Dr_Smith_20250702_231824.wav"
 audio_data = load_audio_with_librosa(audio_file)
 
 # Process with pipeline using numpy array instead of file path
