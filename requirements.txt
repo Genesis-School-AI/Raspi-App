@@ -4,4 +4,7 @@ git+https://github.com/huggingface/transformers
 librosa
 ffmpeg-python
 torch
+requests
+soundfile
+audioread
 torchaudio

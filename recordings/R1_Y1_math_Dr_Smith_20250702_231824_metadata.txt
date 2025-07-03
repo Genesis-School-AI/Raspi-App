@@ -1,8 +1,0 @@
-Recording Metadata
-==================
-Room ID: 1
-Year ID: 1
-Subject: math
-Teacher Name: Dr. Smith
-Recording Date: 2025-07-02 23:18:24
-Audio File: recordings/R1_Y1_math_Dr_Smith_20250702_231824.wav

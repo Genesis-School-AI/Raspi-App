@@ -4,12 +4,15 @@ import wave
 import threading
 from datetime import datetime
 import os
+import requests
+import json
+from voice import load_audio_with_librosa
 
 class RecordingApp:
     def __init__(self):
         self.root = ctk.CTk()
         self.root.title("Audio Recording App")
-        self.root.geometry("600x500")
+        self.root.geometry("600x750")
         
         # Recording variables
         self.is_recording = False
@@ -263,7 +266,7 @@ class RecordingApp:
         self.metadata_frame.pack(pady=20, padx=20, fill="both", expand=True)
         
     def save_recording(self):
-        """Save the recording with metadata"""
+        """Save the recording with metadata, transcribe, send to API, and clean up"""
         try:
             # Create recordings directory if it doesn't exist
             if not os.path.exists("recordings"):
@@ -277,6 +280,9 @@ class RecordingApp:
             teacher = self.teacher_var.get().replace(" ", "_").replace(".", "")
             
             filename = f"recordings/R{room_id}_Y{year_id}_{subject}_{teacher}_{timestamp}.wav"
+            
+            # Update UI - processing
+            self.status_label.configure(text="Processing recording...")
             
             # Save audio file
             with wave.open(filename, 'wb') as wf:
@@ -296,13 +302,91 @@ class RecordingApp:
                 f.write(f"Teacher Name: {self.teacher_var.get()}\n")
                 f.write(f"Recording Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"Audio File: {filename}\n")
+            
+            # Update UI - transcribing
+            self.status_label.configure(text="Transcribing audio...")
+            
+            # Transcribe audio using the voice module
+            try:
+                transcribed_result = load_audio_with_librosa(filename)
+                print(f"Raw transcription result type: {type(transcribed_result)}")
+                print(f"Raw transcription result: {transcribed_result}")
                 
-            # Update UI
-            self.status_label.configure(text=f"Recording saved: {filename}")
+                # Convert to string if it's a numpy array or other non-string type
+                if hasattr(transcribed_result, 'tolist'):
+                    transcribed_text = str(transcribed_result.tolist())
+                elif isinstance(transcribed_result, dict) and 'text' in transcribed_result:
+                    transcribed_text = str(transcribed_result['text'])
+                else:
+                    transcribed_text = str(transcribed_result)
+                print(f"Transcribed text: {transcribed_text}")
+            except Exception as e:
+                print(f"Transcription error: {e}")
+                transcribed_text = "Transcription failed"
+            
+            # Calculate recording duration
+            recording_duration = len(self.audio_frames) * self.chunk / self.rate
+            duration_formatted = f"{int(recording_duration//60):02d}:{int(recording_duration%60):02d}:00"
+            
+            # Prepare API payload with proper string formatting
+            current_time = datetime.now()
+            api_payload = {
+                "content": {
+                    "teacher_name": str(self.teacher_var.get()),
+                    "teacher_subject": str(self.subject_var.get()),
+                    "time_summit": current_time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "time_of_record": duration_formatted,
+                    "student_year": int(year_id),
+                    "student_room": int(room_id),
+                    "content": transcribed_text
+                }
+            }
+            
+            # Update UI - sending to API
+            self.status_label.configure(text="Sending to API...")
+            
+            # Send to API
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:8690/add-document",
+                    json=api_payload,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    print("Successfully sent to API")
+                    self.status_label.configure(text="Successfully sent to API")
+                else:
+                    print(f"API Error: {response.status_code} - {response.text}")
+                    self.status_label.configure(text=f"API Error: {response.status_code}")
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"API Request failed: {e}")
+                self.status_label.configure(text=f"API Request failed: {str(e)}")
+            
+            # Clean up - delete recording files
+            try:
+                if os.path.exists(filename):
+                    os.remove(filename)
+                    print(f"Deleted audio file: {filename}")
+                    
+                if os.path.exists(metadata_filename):
+                    os.remove(metadata_filename)
+                    print(f"Deleted metadata file: {metadata_filename}")
+                    
+                self.status_label.configure(text="Recording processed and files cleaned up")
+                
+            except Exception as e:
+                print(f"File cleanup error: {e}")
+                self.status_label.configure(text="Recording processed but cleanup failed")
+            
+            # Hide metadata form
             self.metadata_frame.pack_forget()
             
         except Exception as e:
             self.status_label.configure(text=f"Save error: {str(e)}")
+            print(f"Save recording error: {e}")
             
     def run(self):
         """Start the application"""
