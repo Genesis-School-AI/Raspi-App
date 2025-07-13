@@ -29,13 +29,62 @@ class RecordingApp:
         # Check audio devices on startup
         self.check_audio_devices()
         
-        # Sample data for dropdowns
-        self.room_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-        self.year_ids = [1, 2, 3, 4, 5, 6]
+        # Initialize data from API
+        self.fetch_school_data()
+        
+        # Default subjects (fallback if API doesn't provide)
         self.subjects = ["math", "phy", "chem", "bio", "his", "thai", "eng", "com"]
-        self.teacher_names = ["Dr. Smith", "ครูสันต์", "ครูสันติ", "Mr. Wilson", "Dr. Brown", "Ms. Garcia", "ครูนครินท์", "Dr. Anderson"]
         
         self.setup_ui()
+        
+    def fetch_school_data(self):
+        """Fetch school data from API endpoint"""
+        try:
+            print("Fetching school data from API...")
+            response = requests.get(
+                "http://127.0.0.1:8690/school-data",
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"API Response: {data}")
+                
+                # Check if system is available
+                if data.get("data", {}).get("system_status") == "on":
+                    # Extract room IDs (1 to room_length)
+                    room_length = int(data["data"].get("room_length", 5))
+                    self.room_ids = list(range(1, room_length + 1))
+                    
+                    # Extract year IDs (1 to year_length)
+                    year_length = int(data["data"].get("year_length", 6))
+                    self.year_ids = list(range(1, year_length + 1))
+                    
+                    # Extract teacher names
+                    teachers = data["data"].get("teacher", [])
+                    self.teacher_names = teachers if teachers else ["System Not Available"]
+                    
+                    print(f"Successfully loaded: {len(self.room_ids)} rooms, {len(self.year_ids)} years, {len(self.teacher_names)} teachers")
+                else:
+                    print("System status is off, using fallback data")
+                    self.use_fallback_data()
+            else:
+                print(f"API returned status code: {response.status_code}")
+                self.use_fallback_data()
+                
+        except requests.exceptions.RequestException as e:
+            print(f"API Request failed: {e}")
+            self.use_fallback_data()
+        except Exception as e:
+            print(f"Error parsing API response: {e}")
+            self.use_fallback_data()
+    
+    def use_fallback_data(self):
+        """Use fallback data when API is not available"""
+        print("Using fallback data - System Not Available")
+        self.room_ids = [1]
+        self.year_ids = [1]
+        self.teacher_names = ["System Not Available"]
         
     def check_audio_devices(self):
         """Check available audio devices and adjust settings"""
@@ -127,10 +176,10 @@ class RecordingApp:
         room_frame.pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(room_frame, text="Room ID:", font=ctk.CTkFont(size=12)).pack(side="left", padx=10)
-        self.room_var = ctk.StringVar(value=str(self.room_ids[0]))
+        self.room_var = ctk.StringVar(value=str(self.room_ids[0]) if self.room_ids else "1")
         self.room_dropdown = ctk.CTkComboBox(
             room_frame,
-            values=[str(room) for room in self.room_ids],
+            values=[str(room) for room in self.room_ids] if self.room_ids else ["1"],
             variable=self.room_var,
             width=200
         )
@@ -141,10 +190,10 @@ class RecordingApp:
         year_frame.pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(year_frame, text="Year ID:", font=ctk.CTkFont(size=12)).pack(side="left", padx=10)
-        self.year_var = ctk.StringVar(value=str(self.year_ids[0]))
+        self.year_var = ctk.StringVar(value=str(self.year_ids[0]) if self.year_ids else "1")
         self.year_dropdown = ctk.CTkComboBox(
             year_frame,
-            values=[str(year) for year in self.year_ids],
+            values=[str(year) for year in self.year_ids] if self.year_ids else ["1"],
             variable=self.year_var,
             width=200
         )
@@ -169,10 +218,10 @@ class RecordingApp:
         teacher_frame.pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(teacher_frame, text="Teacher Name:", font=ctk.CTkFont(size=12)).pack(side="left", padx=10)
-        self.teacher_var = ctk.StringVar(value=self.teacher_names[0])
+        self.teacher_var = ctk.StringVar(value=self.teacher_names[0] if self.teacher_names else "System Not Available")
         self.teacher_dropdown = ctk.CTkComboBox(
             teacher_frame,
-            values=self.teacher_names,
+            values=self.teacher_names if self.teacher_names else ["System Not Available"],
             variable=self.teacher_var,
             width=200
         )
